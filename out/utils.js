@@ -10,7 +10,7 @@ const path = require("path");
 function getWorkspaceRoot() {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
-        vscode.window.showErrorMessage('No workspace folder is open');
+        vscode.window.showErrorMessage("No workspace folder is open");
         return undefined;
     }
     return workspaceFolders[0].uri.fsPath;
@@ -32,10 +32,10 @@ async function readTemplate(templateType) {
     const workspaceRoot = getWorkspaceRoot();
     if (!workspaceRoot)
         return undefined;
-    const templatePath = path.join(workspaceRoot, 'templates', `${templateType}.md`);
+    const templatePath = path.join(workspaceRoot, "templates", `${templateType}.md`);
     try {
         if (fs.existsSync(templatePath)) {
-            return fs.readFileSync(templatePath, 'utf8');
+            return fs.readFileSync(templatePath, "utf8");
         }
         else {
             // Template doesn't exist, create a default one
@@ -53,7 +53,7 @@ exports.readTemplate = readTemplate;
  */
 function createDefaultTemplate(templateType) {
     switch (templateType) {
-        case 'daily':
+        case "daily":
             return `# Daily Journal: \${date}
 
 ## Morning Reflection
@@ -71,7 +71,7 @@ function createDefaultTemplate(templateType) {
 ## Tomorrow's Focus
 - 
 `;
-        case 'weekly':
+        case "weekly":
             return `# Weekly Review: \${date}
 
 ## Accomplishments
@@ -89,7 +89,7 @@ function createDefaultTemplate(templateType) {
 ## Action Items
 - [ ] 
 `;
-        case 'note':
+        case "note":
             return `# \${title}
 *Created: \${datetime}*
 
@@ -114,7 +114,7 @@ function createDefaultTemplate(templateType) {
  */
 function formatTemplate(template, customVars = {}) {
     const now = new Date();
-    const formattedDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const formattedDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
     const formattedTime = now.toLocaleTimeString();
     let result = template
         .replace(/\${date}/g, formattedDate)
@@ -122,7 +122,7 @@ function formatTemplate(template, customVars = {}) {
         .replace(/\${datetime}/g, `${formattedDate} ${formattedTime}`);
     // Replace any custom variables
     for (const [key, value] of Object.entries(customVars)) {
-        result = result.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), value);
+        result = result.replace(new RegExp(`\\$\\{${key}\\}`, "g"), value);
     }
     return result;
 }
@@ -130,7 +130,7 @@ exports.formatTemplate = formatTemplate;
 /**
  * Creates a new note file from a template
  */
-async function createNoteFromTemplate(templateType, directoryName, filenamePrefix = '', customVars = {}) {
+async function createNoteFromTemplate(templateType, directoryName, filenamePrefix = "", customVars = {}, isPrivate = false) {
     const workspaceRoot = getWorkspaceRoot();
     if (!workspaceRoot)
         return;
@@ -140,20 +140,22 @@ async function createNoteFromTemplate(templateType, directoryName, filenamePrefi
         return;
     // Create formatted content
     const formattedContent = formatTemplate(templateContent, customVars);
+    // Determine the base directory based on privacy setting
+    const baseDir = isPrivate ? "private" : directoryName;
     // Ensure directory exists
-    const contentDir = path.join(workspaceRoot, 'content', directoryName);
+    const contentDir = path.join(workspaceRoot, "content", baseDir);
     ensureDirectoryExists(contentDir);
     // Generate filename
     const now = new Date();
-    const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-    const filename = filenamePrefix ?
-        `${filenamePrefix}-${dateStr}.md` :
-        `${dateStr}.md`;
+    const dateStr = now.toISOString().split("T")[0]; // YYYY-MM-DD
+    const filename = filenamePrefix
+        ? `${filenamePrefix}-${dateStr}.md`
+        : `${dateStr}.md`;
     const filePath = path.join(contentDir, filename);
     // Check if file already exists
     if (fs.existsSync(filePath)) {
-        const overwrite = await vscode.window.showWarningMessage(`File ${filename} already exists. Do you want to overwrite it?`, 'Yes', 'No');
-        if (overwrite !== 'Yes') {
+        const overwrite = await vscode.window.showWarningMessage(`File ${filename} already exists. Do you want to overwrite it?`, "Yes", "No");
+        if (overwrite !== "Yes") {
             return;
         }
     }
