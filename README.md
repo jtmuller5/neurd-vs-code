@@ -1,6 +1,6 @@
 # Neurd VS Code Extension
 
-A VS Code extension for working with the Neurd note-taking system, designed for AI-enhanced note-taking and journaling.
+A VS Code extension for working with the [Neurd note-taking system](https://github.com/jtmuller5/neurd), designed for AI-enhanced note-taking and journaling.
 
 ## Features
 
