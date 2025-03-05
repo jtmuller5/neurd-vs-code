@@ -2,7 +2,7 @@
   "name": "neurd-vs-code",
   "displayName": "Neurd Notes",
   "description": "An adaptable note-taking journal extension with AI in mind",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "CodeontheRocks",
   "icon": "neurd.png",
   "repository": {
