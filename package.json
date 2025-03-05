@@ -32,8 +32,26 @@
       {
         "command": "neurd.createNote",
         "title": "Neurd: Create General Note"
+      },
+      {
+        "command": "neurd.createFromTemplate",
+        "title": "Neurd: Create Note From Custom Template"
+      },
+      {
+        "command": "neurd.setDefaultJournal",
+        "title": "Neurd: Set Default Journal Location"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Neurd Notes",
+      "properties": {
+        "neurd.defaultJournalPath": {
+          "type": "string",
+          "default": null,
+          "description": "Default location for your Neurd journal"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

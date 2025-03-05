@@ -4,16 +4,14 @@ exports.createNoteFromTemplate = exports.formatTemplate = exports.readTemplate =
 const vscode = require("vscode");
 const fs = require("fs");
 const path = require("path");
+// Import settings management
+const settings_1 = require("./settings");
 /**
  * Gets the workspace root path
+ * This is now a wrapper around getProjectPath for backward compatibility
  */
-function getWorkspaceRoot() {
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders || workspaceFolders.length === 0) {
-        vscode.window.showErrorMessage("No workspace folder is open");
-        return undefined;
-    }
-    return workspaceFolders[0].uri.fsPath;
+async function getWorkspaceRoot() {
+    return (0, settings_1.getProjectPath)();
 }
 exports.getWorkspaceRoot = getWorkspaceRoot;
 /**
@@ -29,23 +27,27 @@ exports.ensureDirectoryExists = ensureDirectoryExists;
  * Reads a template file and returns its content
  */
 async function readTemplate(templateType) {
-    const workspaceRoot = getWorkspaceRoot();
+    const workspaceRoot = await getWorkspaceRoot();
     if (!workspaceRoot)
         return undefined;
-    const templatePath = path.join(workspaceRoot, "templates", `${templateType}.md`);
-    try {
+    const possibleTemplatePaths = [
+        // Try in standard templates directory
+        path.join(workspaceRoot, "templates", `${templateType}.md`),
+        // Try in .templates directory (hidden)
+        path.join(workspaceRoot, ".templates", `${templateType}.md`),
+        // Try at project root
+        path.join(workspaceRoot, `${templateType}.md`),
+        // Try in .vscode directory
+        path.join(workspaceRoot, ".vscode", `${templateType}.md`),
+    ];
+    // Try to find the template in various locations
+    for (const templatePath of possibleTemplatePaths) {
         if (fs.existsSync(templatePath)) {
             return fs.readFileSync(templatePath, "utf8");
         }
-        else {
-            // Template doesn't exist, create a default one
-            return createDefaultTemplate(templateType);
-        }
     }
-    catch (err) {
-        vscode.window.showErrorMessage(`Failed to read template: ${templateType}.md`);
-        return undefined;
-    }
+    // Template doesn't exist anywhere, create a default one
+    return createDefaultTemplate(templateType);
 }
 exports.readTemplate = readTemplate;
 /**
@@ -114,15 +116,32 @@ function createDefaultTemplate(templateType) {
  */
 function formatTemplate(template, customVars = {}) {
     const now = new Date();
-    const formattedDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
+    // Create various date formats
+    const isoDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
     const formattedTime = now.toLocaleTimeString();
+    // Create MM-DD-YYYY format
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const year = now.getFullYear();
+    const mmddyyyyDate = `${month}-${day}-${year}`;
     let result = template
-        .replace(/\${date}/g, formattedDate)
+        // Handle ${var} style variables
+        .replace(/\${date}/g, isoDate)
         .replace(/\${time}/g, formattedTime)
-        .replace(/\${datetime}/g, `${formattedDate} ${formattedTime}`);
-    // Replace any custom variables
+        .replace(/\${datetime}/g, `${isoDate} ${formattedTime}`)
+        // Handle {var} style variables (more user-friendly)
+        .replace(/{date}/g, mmddyyyyDate)
+        .replace(/{isodate}/g, isoDate)
+        .replace(/{time}/g, formattedTime)
+        .replace(/{datetime}/g, `${mmddyyyyDate} ${formattedTime}`)
+        .replace(/{year}/g, year.toString())
+        .replace(/{month}/g, month)
+        .replace(/{day}/g, day);
+    // Replace any custom variables (support both styles)
     for (const [key, value] of Object.entries(customVars)) {
-        result = result.replace(new RegExp(`\\$\\{${key}\\}`, "g"), value);
+        result = result
+            .replace(new RegExp(`\\$\\{${key}\\}`, "g"), value)
+            .replace(new RegExp(`\\{${key}\\}`, "g"), value);
     }
     return result;
 }
@@ -130,20 +149,39 @@ exports.formatTemplate = formatTemplate;
 /**
  * Creates a new note file from a template
  */
-async function createNoteFromTemplate(templateType, directoryName, filenamePrefix = "", customVars = {}, isPrivate = false) {
-    const workspaceRoot = getWorkspaceRoot();
+async function createNoteFromTemplate(templateType, directoryName, filenamePrefix = "", customVars = {}, isPrivate = false, customTemplateContent) {
+    const workspaceRoot = await getWorkspaceRoot();
     if (!workspaceRoot)
         return;
-    // Read template content
-    const templateContent = await readTemplate(templateType);
-    if (!templateContent)
-        return;
+    // Get template content, either from parameter or by reading template file
+    let templateContent;
+    if (customTemplateContent) {
+        templateContent = customTemplateContent;
+    }
+    else {
+        templateContent = await readTemplate(templateType);
+        if (!templateContent)
+            return;
+    }
     // Create formatted content
     const formattedContent = formatTemplate(templateContent, customVars);
     // Determine the base directory based on privacy setting
     const baseDir = isPrivate ? "private" : directoryName;
+    // First check if the project is using the Neurd structure
+    let contentDir = path.join(workspaceRoot, "content", baseDir);
+    // If the content directory doesn't exist yet, create it
+    if (!fs.existsSync(path.join(workspaceRoot, "content"))) {
+        // Check if we should create the Neurd structure or just use root folders
+        const createNeurdStructure = await vscode.window.showQuickPick(["Yes, use Neurd structure", "No, use project root"], { placeHolder: "Create Neurd content folder structure?" });
+        if (!createNeurdStructure) {
+            return; // User cancelled
+        }
+        if (createNeurdStructure === "No, use project root") {
+            // Use directories directly at workspace root
+            contentDir = path.join(workspaceRoot, baseDir);
+        }
+    }
     // Ensure directory exists
-    const contentDir = path.join(workspaceRoot, "content", baseDir);
     ensureDirectoryExists(contentDir);
     // Generate filename
     const now = new Date();
