@@ -166,7 +166,7 @@ async function createNoteFromTemplate(templateType, directoryName, filenamePrefi
     // Create formatted content
     const formattedContent = formatTemplate(templateContent, customVars);
     // Determine the base directory based on privacy setting
-    const baseDir = isPrivate ? "private" : directoryName;
+    const baseDir = isPrivate ? `/private/${directoryName}` : directoryName;
     // First check if the project is using the Neurd structure
     let contentDir = path.join(workspaceRoot, "content", baseDir);
     // If the content directory doesn't exist yet, create it
